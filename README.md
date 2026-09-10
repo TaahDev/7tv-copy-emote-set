@@ -17,7 +17,11 @@
 
 ---
 
-Paste a source set, pick your destination, enter your token, and copy in safe batches. Small Windows app — no installer, no extra 7TV login, no cloud proxy.
+<p align="center">
+  <img src="screenshot.png" alt="7TV Emote Copier" width="512">
+</p>
+
+Paste a source set, pick your destination, enter your token, and copy in safe batches.
 
 ## Features
 
