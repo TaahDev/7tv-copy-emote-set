@@ -1,0 +1,77 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Read version
+        id: meta
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tauri = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $cargoLine = Select-String -Path src-tauri/Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          if (-not $cargoLine) { throw "Could not read version from src-tauri/Cargo.toml" }
+          $cargo = $cargoLine.Matches.Groups[1].Value
+          if (-not $pkg -or $pkg -ne $tauri -or $pkg -ne $cargo) {
+            throw "Version mismatch: package.json=$pkg tauri.conf.json=$tauri Cargo.toml=$cargo. Run npm run set-version -- x.y.z so all three match."
+          }
+          "version=$pkg" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Version $pkg"
+
+      - name: Extract patch notes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node scripts/extract-release-notes.mjs ${{ steps.meta.outputs.version }} release-notes.md
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm ci
+      - run: npx tauri build
+
+      - name: Upload exe (every build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 7tv-emote-copier-windows-v${{ steps.meta.outputs.version }}
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/7tv-emote-copier.exe
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: 7TV Emote Copier v${{ steps.meta.outputs.version }}
+          body_path: release-notes.md
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/7tv-emote-copier.exe

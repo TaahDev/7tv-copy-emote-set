@@ -1,0 +1,21 @@
+# deps / build
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/WixTools/
+
+# vite / tauri
+*.log
+.DS_Store
+Thumbs.db
+
+# env / local
+.env
+.env.local
+
+# python legacy
+__pycache__/
+*.pyc
+.venv/
+
+legacy/
