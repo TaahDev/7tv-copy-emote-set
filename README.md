@@ -5,7 +5,7 @@
 <h1 align="center">7TV Emote Copier</h1>
 
 <p align="center">
-  Copy any <a href="https://7tv.app">7TV</a> emote set in one click.<br>
+  Copy any <a href="https://7tv.app">7TV</a> emote set.<br>
   Free, open source, and your token never leaves your device.
 </p>
 
@@ -17,45 +17,44 @@
 
 ---
 
-Paste a source set, pick your destination, and copy in safe batches. Built as a small Windows desktop app — no account, no cloud proxy, no extra 7TV login flow.
+Paste a source set, pick your destination, enter your token, and copy in safe batches. Small Windows app — no installer, no extra 7TV login, no cloud proxy.
 
 ## Features
 
 - Copy a full emote set from a URL or set ID
-- Preview the source before you start
 - Batched copies with a delay so 7TV rate limits are less likely to trip
-- Per-emote errors instead of a silent “it worked”
 - Cancel anytime
-- Token stays on this device (saved only in local app storage)
+- Token stays on your device
 
 ## Download
 
-Windows only. No Rust or Node install needed to use the app.
+Windows only.
 
-- **Latest version:** [Releases](https://github.com/TaahDev/7tv-copy-emote-set/releases/latest) — portable `.exe` or installer
-- **Older versions:** the same [Releases](https://github.com/TaahDev/7tv-copy-emote-set/releases) page keeps every previous `v*` (they are not overwritten)
+- **Latest version:** [Releases](https://github.com/TaahDev/7tv-copy-emote-set/releases/latest) — `7tv-emote-copier.exe`
 
-Grab the installer if you want a Start Menu entry, or the portable `.exe` if you just want to run it.
+Download the `.exe` and run it. There is no installer.
+
+Windows SmartScreen may warn that the publisher is unknown. That is expected: the build is unsigned. Use **More info** → **Run anyway**
 
 ## Usage
 
-1. Download and open **7TV Emote Copier**.
+1. Download and open **7tv-emote-copier.exe**.
 2. **Source** — a set ID or URL like `https://7tv.app/emote-sets/…`
 3. **Destination** — the set you own (or can edit). Same ID or URL format.
-4. **Token** — your 7TV bearer token (see below).
-5. Optionally hit **Preview source**, then **Start copying**.
+4. **Token** — your 7TV bearer token (see below, or **How to get a token** in the app).
+5. **Start copying**.
 
 Default pace is 25 emotes per batch with 45 seconds between batches. Raise the delay if you get rate-limited (HTTP 429).
 
 ### Getting your token
 
-1. Open [7tv.app](https://7tv.app) and sign in.
-2. Open DevTools → **Network**.
-3. Trigger any GraphQL request (browse a set, edit something).
-4. Find a `gql` request → **Request Headers** → `Authorization: Bearer …`
-5. Paste that token into the app.
+1. Sign in at [7tv.app](https://7tv.app).
+2. Open DevTools with `F12` or `Ctrl`+`Shift`+`I`, then open the **Network** tab.
+3. Browse any emote set so a request named `gql` shows up.
+4. Click it → **Headers** → scroll down to **Authorization**, and copy the value after `Bearer`. It always starts with `ey`.
+5. Paste that into the app.
 
-It is stored only in this app’s localStorage. It is never sent anywhere except 7TV.
+It is stored only on this device. It is sent to 7TV, nowhere else.
 
 ## How it works
 
@@ -74,7 +73,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:1420. Production desktop builds need [Tauri’s prerequisites](https://v2.tauri.app/start/prerequisites/) and `npx tauri build`.
+Then open http://localhost:1420. Production desktop builds need [Tauri’s prerequisites](https://v2.tauri.app/start/prerequisites/) and `npx tauri build`. That produces `src-tauri/target/release/7tv-emote-copier.exe`.
 
 ## License
 

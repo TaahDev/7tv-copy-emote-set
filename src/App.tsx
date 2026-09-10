@@ -7,7 +7,7 @@ import {
   type EmoteSet,
 } from "./lib/seventv";
 
-type Phase = "idle" | "previewing" | "ready" | "copying" | "done" | "error";
+type Phase = "idle" | "copying" | "done" | "error";
 type LogLine = { kind: "info" | "ok" | "err"; text: string };
 
 const DEFAULT_CHUNK = 25;
@@ -29,7 +29,7 @@ export default function App() {
   const [failures, setFailures] = useState<{ name: string; error: string }[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
-  const busy = phase === "previewing" || phase === "copying";
+  const busy = phase === "copying";
   const pct = useMemo(() => {
     if (!progress || progress.total === 0) return 0;
     return Math.round((progress.done / progress.total) * 100);
@@ -48,26 +48,6 @@ export default function App() {
     }
   }
 
-  async function preview() {
-    if (busy) return;
-    setPhase("previewing");
-    setSet(null);
-    setFailures([]);
-    setSummary("");
-    setProgress(null);
-    try {
-      const s = await getEmoteSet(source);
-      setSet(s);
-      setPhase("ready");
-      push("ok", `Found “${s.name}” — ${s.emotes.length} emotes.`);
-    } catch (e: any) {
-      setPhase("error");
-      const msg = e?.name === "AbortError" ? "Preview cancelled." : String(e?.message ?? e);
-      push("err", msg);
-      setSummary(msg);
-    }
-  }
-
   async function start() {
     if (busy) return;
     setFailures([]);
@@ -75,7 +55,6 @@ export default function App() {
     setProgress(null);
     try {
       let emotes = set?.emotes ?? [];
-      // Allow starting without an explicit preview click.
       if (!emotes.length || parseSetId(source) !== set?.id) {
         push("info", "Loading source set…");
         const s = await getEmoteSet(source);
@@ -130,52 +109,24 @@ export default function App() {
     abortRef.current?.abort();
   }
 
-  function reset() {
-    abortRef.current?.abort();
-    setPhase("idle");
-    setSet(null);
-    setProgress(null);
-    setSummary("");
-    setFailures([]);
-    setLog([]);
-  }
-
   return (
     <div className="page">
       <main className="shell">
-        {/* Hero — Apple / Linear minimal */}
-        <p className="eyebrow">Open source · Tauri + React</p>
-        <h1 className="hero">Copy any 7TV set in one click.</h1>
-        <p className="sub">
-          Paste a source set, pick your destination, and let it copy in safe batches. Your token
-          never leaves this device.
-        </p>
+        <h1 className="hero">Copy any 7TV set.</h1>
 
-        <div className="ctas">
-          <button className="btn primary" onClick={start} disabled={busy}>
-            {phase === "copying" ? "Copying…" : "Start copying"}
-          </button>
-          <button className="btn ghost" onClick={preview} disabled={busy}>
-            Preview source
-          </button>
-        </div>
-        <p className="proof">Free &amp; open source · MIT · No account needed</p>
-
-        {/* Product UI is the visual */}
         <section className="card" aria-label="Emote copier">
           <Field
             label="Source"
             value={source}
             onChange={setSource}
             placeholder="Set ID or https://7tv.app/emote-sets/…"
-            hint={set ? `${set.name} · ${set.emotes.length} emotes` : "Where to copy from."}
+            hint={set ? `${set.name} · ${set.emotes.length} emotes` : undefined}
           />
           <Field
             label="Destination"
             value={target}
             onChange={setTarget}
             placeholder="Your set ID or URL"
-            hint="Where to copy to. You must own / edit this set."
           />
           <div className="field">
             <div className="row">
@@ -198,7 +149,19 @@ export default function App() {
               autoComplete="off"
               spellCheck={false}
             />
-            <p className="hint">Saved only in this app (localStorage). Get it from 7tv.app devtools.</p>
+            <details className="token-guide">
+              <summary>How to get a token</summary>
+              <ol>
+                <li>Sign in at <a href="https://7tv.app" target="_blank" rel="noreferrer">7tv.app</a>.</li>
+                <li>Open DevTools with <kbd>F12</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd>, then open the <strong>Network</strong> tab.</li>
+                <li>Browse any emote set so a request named <code>gql</code> shows up.</li>
+                <li>
+                  Click it → <strong>Headers</strong> → scroll down to <strong>Authorization</strong>, and copy the
+                  value after <code>Bearer</code>. It always starts with <code>ey</code>.
+                </li>
+              </ol>
+              <p className="token-guide-note">Saved only on this device. It is sent to 7TV, nowhere else.</p>
+            </details>
           </div>
 
           <div className="grid2">
@@ -264,9 +227,9 @@ export default function App() {
             {phase === "copying" ? (
               <button className="btn danger" onClick={cancel}>Cancel</button>
             ) : (
-              (phase === "done" || phase === "error") && (
-                <button className="btn ghost" onClick={reset}>Reset</button>
-              )
+              <button className="btn primary" onClick={start} disabled={busy}>
+                Start copying
+              </button>
             )}
           </div>
 
@@ -301,12 +264,6 @@ export default function App() {
             </div>
           )}
         </section>
-
-        <footer className="foot">
-          <span>MIT-licensed. Token stays on-device.</span>
-          <span className="dot">·</span>
-          <span>Use with care — respect 7TV rate limits.</span>
-        </footer>
       </main>
     </div>
   );
@@ -317,7 +274,7 @@ function Field(props: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
-  hint: string;
+  hint?: string;
 }) {
   const id = `f-${props.label}`;
   return (
@@ -331,7 +288,7 @@ function Field(props: {
         spellCheck={false}
         autoComplete="off"
       />
-      <p className="hint">{props.hint}</p>
+      {props.hint && <p className="hint">{props.hint}</p>}
     </div>
   );
 }
