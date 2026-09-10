@@ -1,100 +1,61 @@
-# 7TV Emote Copier
+<p align="center">
+  <img src="app-icon.png" alt="7TV Emote Copier" width="120" height="120">
+</p>
 
-Copy any 7TV emote set in one click. Apple-minimal desktop app built with **Tauri + React + TypeScript**.
+<h1 align="center">7TV Emote Copier</h1>
 
-> Free & open source (MIT). Your bearer token never leaves your device.
+<p align="center">
+  Copy any <a href="https://7tv.app">7TV</a> emote set in one click.<br>
+  Free, open source, and your token never leaves your device.
+</p>
 
-## Why this rewrite?
+<p align="center">
+  <a href="https://github.com/TaahDev/7tv-copy-emote-set/releases/latest"><img src="https://img.shields.io/github/v/release/TaahDev/7tv-copy-emote-set?style=flat-square" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/TaahDev/7tv-copy-emote-set?style=flat-square" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square" alt="Windows">
+</p>
 
-The original `legacy/` Python + Tkinter version worked, but had real issues:
+---
 
-- checked only HTTP 200, silently swallowing per-emote GraphQL errors
-- slept the full delay even after the last batch
-- `requests` with no timeouts — could hang forever
-- Tkinter widgets updated from a background thread (crash-prone)
-- Tkinter UI felt dated, hard to distribute
+Paste a source set, pick your destination, and copy in safe batches. Built as a small Windows desktop app — no account, no cloud proxy, no extra 7TV login flow.
 
-This version fixes all of that, with a Linear / Apple-style UI.
+## Features
 
-## Quick start (web dev mode — no Rust needed)
-
-```sh
-npm install
-npm run dev
-```
-
-Open http://localhost:1420.
-
-## Production build
-
-```sh
-npm run build   # typecheck + vite build -> dist/
-npm run preview # serve dist/ locally
-```
+- Copy a full emote set from a URL or set ID
+- Preview the source before you start
+- Batched copies with a delay so 7TV rate limits are less likely to trip
+- Per-emote errors instead of a silent “it worked”
+- Cancel anytime
+- Token stays on this device (saved only in local app storage)
 
 ## Download
 
-No Rust install needed on your machine:
+Windows only. No Rust or Node install needed to use the app.
 
-- **Latest version:** repo → **Releases** → newest `v*` → portable `.exe` or installer.
-- **Older versions:** the same Releases page keeps every previous `v*` (they are not overwritten).
-- **PR / CI artifacts:** repo → **Actions** → a workflow run → **Artifacts**
-  (these expire; use Releases for anything you want to keep).
+- **Latest version:** [Releases](https://github.com/TaahDev/7tv-copy-emote-set/releases/latest) — portable `.exe` or installer
+- **Older versions:** the same [Releases](https://github.com/TaahDev/7tv-copy-emote-set/releases) page keeps every previous `v*` (they are not overwritten)
 
-## Ship a new version (maintainers)
+Grab the installer if you want a Start Menu entry, or the portable `.exe` if you just want to run it.
 
-You pick the version number. Pushing `main` builds Windows binaries and publishes
-a GitHub Release for that version. Older releases stay on the Releases page.
+## Usage
 
-1. **Set the version** (updates `package.json`, `src-tauri/tauri.conf.json`, and `Cargo.toml`):
+1. Download and open **7TV Emote Copier**.
+2. **Source** — a set ID or URL like `https://7tv.app/emote-sets/…`
+3. **Destination** — the set you own (or can edit). Same ID or URL format.
+4. **Token** — your 7TV bearer token (see below).
+5. Optionally hit **Preview source**, then **Start copying**.
 
-   ```sh
-   npm run set-version -- 0.2.0
-   ```
+Default pace is 25 emotes per batch with 45 seconds between batches. Raise the delay if you get rate-limited (HTTP 429).
 
-2. **Write patch notes** at the top of [`CHANGELOG.md`](CHANGELOG.md). The heading
-   must match the version exactly:
+### Getting your token
 
-   ```md
-   ## [0.2.0] - 2026-09-10
+1. Open [7tv.app](https://7tv.app) and sign in.
+2. Open DevTools → **Network**.
+3. Trigger any GraphQL request (browse a set, edit something).
+4. Find a `gql` request → **Request Headers** → `Authorization: Bearer …`
+5. Paste that token into the app.
 
-   ### Added
-   - What is new.
-
-   ### Fixed
-   - What you fixed.
-   ```
-
-3. **Commit and push `main`:**
-
-   ```sh
-   git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
-   git commit -m "Release 0.2.0"
-   git push origin main
-   ```
-
-4. Wait for **Actions → Build & Release**. It creates (or updates) tag `v0.2.0`
-   and a GitHub Release with your notes plus the `.exe` / installers.
-
-**Rules**
-
-- All three version fields must match, or CI fails.
-- `CHANGELOG.md` must have a non-empty `## [x.y.z]` section for that version, or the publish step fails.
-- Bump the version for a **new** historized release. Pushing the same version again rebuilds and updates that release only; previous `v*` releases are left alone.
-- Pull requests build artifacts but do **not** publish a release.
-
-## Build locally (optional)
-
-Requires Rust + platform webview deps — see
-[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). Most people
-should just use CI (see above).
-
-```sh
-npm run build
-npx tauri build
-```
-
-Binaries land in `src-tauri/target/release/bundle/`.
+It is stored only in this app’s localStorage. It is never sent anywhere except 7TV.
 
 ## How it works
 
@@ -106,28 +67,15 @@ Binaries land in `src-tauri/target/release/bundle/`.
 
 All logic: [`src/lib/seventv.ts`](src/lib/seventv.ts). UI: [`src/App.tsx`](src/App.tsx).
 
-## Getting your inputs
+## Development
 
-- **Source / Destination:** a set ID or full URL like `https://7tv.app/emote-sets/…`
-- **Token:** your 7TV bearer token (7tv.app → devtools → network → `gql` → `Authorization: Bearer …`).
-  Stored only in app localStorage.
-
-## Project layout
-
-```
-src/            React UI + 7TV client
-src-tauri/      Tauri shell (window, bundling — no secrets, no proxy)
-scripts/        icon generator + set-version / release-notes helpers
-legacy/         original Python/Tkinter version (gitignored, not published)
-.github/        build on PR; Release on every push to main
-CHANGELOG.md    patch notes used as GitHub Release body
+```sh
+npm install
+npm run dev
 ```
 
-## Contributing
-
-PRs welcome. `npm run build` must pass. Keep the UI type-first and minimal —
-one blue accent, no decoration.
+Then open http://localhost:1420. Production desktop builds need [Tauri’s prerequisites](https://v2.tauri.app/start/prerequisites/) and `npx tauri build`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)

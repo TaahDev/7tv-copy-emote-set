@@ -14,11 +14,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          fetch-depth: 2
 
       - name: Read version
         id: meta
@@ -35,22 +32,77 @@ jobs:
           "version=$pkg" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Version $pkg"
 
+      - name: Decide whether to build or publish
+        id: gate
+        shell: pwsh
+        run: |
+          $event = "${{ github.event_name }}"
+          $build = $false
+          $publish = $false
+
+          if ($event -eq "pull_request") {
+            $build = $true
+            Write-Host "Pull request — build only."
+          } else {
+            git rev-parse --verify HEAD^ 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              $build = $true
+              $publish = $true
+              Write-Host "Initial commit — build and publish."
+            } else {
+              $files = @(git diff --name-only HEAD^ HEAD) | ForEach-Object { $_ -replace '\\', '/' }
+              $releasePaths = @(
+                "package.json",
+                "src-tauri/tauri.conf.json",
+                "src-tauri/Cargo.toml",
+                "CHANGELOG.md"
+              )
+              $hit = $files | Where-Object { $releasePaths -contains $_ }
+              if ($hit) {
+                $build = $true
+                $publish = $true
+                Write-Host "Version or changelog changed ($($hit -join ', ')) — build and publish."
+              } else {
+                Write-Host "No version bump in this push — skipping build and release."
+              }
+            }
+          }
+
+          "build=$build" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "publish=$publish" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Skipped
+        if: steps.gate.outputs.build != 'true'
+        run: echo "Skipped — bump the version (and CHANGELOG) to ship a new release."
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.build == 'true' || steps.gate.outputs.publish == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
       - name: Extract patch notes
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.gate.outputs.publish == 'true'
         run: node scripts/extract-release-notes.mjs ${{ steps.meta.outputs.version }} release-notes.md
 
       - name: Install Rust
+        if: steps.gate.outputs.build == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
+        if: steps.gate.outputs.build == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
 
-      - run: npm ci
-      - run: npx tauri build
+      - if: steps.gate.outputs.build == 'true'
+        run: npm ci
 
-      - name: Upload exe (every build)
+      - if: steps.gate.outputs.build == 'true'
+        run: npx tauri build
+
+      - name: Upload exe
+        if: steps.gate.outputs.build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: 7tv-emote-copier-windows-v${{ steps.meta.outputs.version }}
@@ -60,7 +112,7 @@ jobs:
             src-tauri/target/release/7tv-emote-copier.exe
 
       - name: Publish GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.gate.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
